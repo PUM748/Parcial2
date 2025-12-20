@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.models.doctor import Doctor
 from app.extensions import db
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
@@ -58,3 +58,21 @@ def login():
         }), 200
 
     return jsonify({"error": "Credenciales inválidas"}), 401
+
+@auth_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def profile():
+    current_doctor_id = get_jwt_identity()
+    doctor = Doctor.query.get(current_doctor_id)
+
+    if not doctor:
+        return jsonify({"error": "Doctor no encontrado"}), 404
+
+    return jsonify({
+        "id": doctor.id,
+        "email": doctor.email,
+        "full_name": doctor.full_name,
+        "specialty": doctor.specialty,
+        "is_active": doctor.is_active,
+        "created_at": doctor.created_at.isoformat() if doctor.created_at else None
+    }), 200

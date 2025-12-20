@@ -12,6 +12,7 @@ class Diagnosis(db.Model):
 
     result = db.Column(db.String(50), nullable=False)
     confidence = db.Column(db.Numeric(5, 2))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
     
     # Relationships
     patient = db.relationship("Patient", backref=db.backref("diagnoses", lazy=True))
