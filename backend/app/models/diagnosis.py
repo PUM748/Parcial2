@@ -1,4 +1,6 @@
 from app.extensions import db
+from datetime import datetime
+
 
 class Diagnosis(db.Model):
     __tablename__ = "diagnoses"
@@ -12,3 +14,8 @@ class Diagnosis(db.Model):
 
     result = db.Column(db.String(50), nullable=False)
     confidence = db.Column(db.Numeric(5, 2))
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )

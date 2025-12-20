@@ -55,6 +55,8 @@ def predict():
     return jsonify({
         "result": label,
         "confidence": confidence,
+        "created_at": diagnosis.created_at.isoformat(),
         "image_url": f"{base_url}/media/uploads/x-ray/{filename}",
         "heatmap_url": f"{base_url}/media/heatmap/{filename}"
+
     })
