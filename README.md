@@ -103,3 +103,37 @@ wheel                        0.45.1
 wrapt                        2.0.1
 xgboost                      1.3.3
 zipp                         3.20.2
+
+
+### istalar dependenicas
+
+```bash
+pip install -r requirements.txt
+```
+
+### Crear base de datos
+
+```bash
+CREATE DATABASE hospital_ia
+use hospital_ia
+show tables
+INSERT INTO doctors (email, password, full_name, specialty)
+VALUES
+('doctor1@hospital.com', 'hashed_password_123', 'Dr. Juan Pérez', 'Neumología'),
+('doctor2@hospital.com', 'hashed_password_456', 'Dra. María López', 'Radiología');
+
+INSERT INTO patients (doctor_id, full_name, dni, age, gender)
+VALUES
+(1, 'Carlos Gómez', '12345678', 45, 'M'),
+(1, 'Ana Martínez', '87654321', 38, 'F'),
+(2, 'Luis Fernández', '11223344', 60, 'M');
+
+select * from diagnoses
+```
+
+### Iniciar base de datos
+```bash
+flask db init
+flask db migrate -m "Initial tables"
+flask db upgrade
+```
