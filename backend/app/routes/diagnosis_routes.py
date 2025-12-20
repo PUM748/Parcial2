@@ -29,7 +29,8 @@ def get_diagnoses():
     # Filtros
     patient_id = request.args.get('patient_id')
     result_filter = request.args.get('result')
-    date_filter = request.args.get('date') # Formato esperado: YYYY-MM-DD
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
     
     query = Diagnosis.query
 
@@ -37,13 +38,13 @@ def get_diagnoses():
         query = query.filter_by(patient_id=patient_id)
     
     if result_filter:
-        # Búsqueda parcial o exacta según necesidad. Usaremos ilike para flexibilidad.
         query = query.filter(Diagnosis.result.ilike(f"%{result_filter}%"))
         
-    if date_filter:
-        # Asumiendo que se quiere filtrar por el día específico
-        from sqlalchemy import func
-        query = query.filter(func.date(Diagnosis.created_at) == date_filter) # Nota: Diagnosis necesita tener created_at, verificaremos el modelo.
+    if date_from:
+        query = query.filter(Diagnosis.created_at >= date_from)
+        
+    if date_to:
+        query = query.filter(Diagnosis.created_at <= date_to)
 
     # Ordenar por defecto descendente
     query = query.order_by(Diagnosis.id.desc())
@@ -52,17 +53,15 @@ def get_diagnoses():
     diagnoses = pagination.items
     
     base_url = request.host_url.rstrip("/")
-    result = []
+    data = []
     
     for d in diagnoses:
         # Obtener nombre del paciente si es posible
         patient_name = d.patient.full_name if d.patient else "Desconocido"
         
-        result.append({
+        data.append({
             "id": d.id,
-            "patient_id": d.patient_id,
             "patient_name": patient_name,
-            "doctor_id": d.doctor_id,
             "result": d.result,
             "confidence": float(d.confidence),
             "image_url": f"{base_url}/media/{d.image_path}",
@@ -71,10 +70,10 @@ def get_diagnoses():
         })
         
     return jsonify({
-        "items": result,
+        "page": pagination.page,
+        "per_page": per_page,
         "total": pagination.total,
-        "pages": pagination.pages,
-        "current_page": pagination.page
+        "data": data
     }), 200
 
 @diagnosis_bp.route("/predict", methods=["POST"])
@@ -121,19 +120,19 @@ def predict():
     try:
         if disease_type.upper() == "COVID":
             # Predicción REAL
-            label, confidence = predict_image(image_path, heatmap_path)
+            if TF_AVAILABLE:
+                label, confidence = predict_image(image_path, heatmap_path)
+            else:
+                label = "MOCK_RESULT"
+                confidence = 90.0
+                import shutil
+                shutil.copy(image_path, heatmap_path)
         
         elif disease_type.upper() in ["IRA", "EDA", "HIPERTENSION", "DIABETES"]:
             # --- MOCK / SIMULACIÓN ---
-            # Aquí se conectarán los modelos reales en el futuro.
-            # Por ahora, simulamos un procesamiento copiando la imagen como "heatmap"
-            # y devolviendo un resultado aleatorio.
-            
-            # Simular heatmap copiando la original (o creando una imagen vacía si se prefiere)
             import shutil
             shutil.copy(image_path, heatmap_path)
             
-            # Resultados simulados
             possible_outcomes = ["Positivo", "Negativo", "Riesgo Alto", "Riesgo Bajo"]
             label = random.choice(possible_outcomes)
             confidence = round(random.uniform(70.0, 99.0), 2)
@@ -141,13 +140,18 @@ def predict():
         else:
             return {"error": f"Tipo de enfermedad '{disease_type}' no soportado"}, 400
 
+        # Guardamos el resultado. Si es COVID, guardamos solo "COVID" o "NORMAL" según el label.
+        # Si es otro, quizás queramos guardar el tipo. Pero para cumplir la spec, el output es 'result'.
+        # Guardaremos el label directo.
+        final_result = label
+
         # 4️⃣ Guardar en BD
         diagnosis = Diagnosis(
             patient_id=patient_id,
             doctor_id=doctor_id,
             image_path=db_image_path,
             heatmap_path=db_heatmap_path,
-            result=f"{disease_type}: {label}", # Guardamos el tipo junto con el resultado
+            result=final_result,
             confidence=confidence
         )
 
@@ -157,9 +161,7 @@ def predict():
         base_url = request.host_url.rstrip("/")
 
         return jsonify({
-            "diagnosis_id": diagnosis.id,
-            "disease_type": disease_type,
-            "result": label,
+            "result": final_result,
             "confidence": float(confidence),
             "image_url": f"{base_url}/media/{db_image_path}",
             "heatmap_url": f"{base_url}/media/{db_heatmap_path}"

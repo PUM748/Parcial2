@@ -4,6 +4,7 @@ from app.models.patient import Patient
 from app.models.diagnosis import Diagnosis
 from app.extensions import db
 from sqlalchemy import func
+from datetime import datetime, timedelta
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -12,38 +13,45 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def get_dashboard_summary():
     doctor_id = get_jwt_identity()
     
-    # 1. Total Pacientes del Doctor
+    # --- 1. Pacientes ---
     total_patients = Patient.query.filter_by(doctor_id=doctor_id).count()
+    male_patients = Patient.query.filter_by(doctor_id=doctor_id, gender='M').count()
+    female_patients = Patient.query.filter_by(doctor_id=doctor_id, gender='F').count()
+    other_patients = Patient.query.filter_by(doctor_id=doctor_id, gender='O').count()
     
-    # 2. Total Diagnósticos del Doctor
+    avg_age_query = db.session.query(func.avg(Patient.age)).filter_by(doctor_id=doctor_id).scalar()
+    average_age = int(avg_age_query) if avg_age_query else 0
+
+    # --- 2. Diagnósticos ---
     total_diagnoses = Diagnosis.query.filter_by(doctor_id=doctor_id).count()
+    covid_positive = Diagnosis.query.filter_by(doctor_id=doctor_id, result='COVID').count()
+    covid_negative = Diagnosis.query.filter_by(doctor_id=doctor_id, result='NORMAL').count()
     
-    # 3. Estadísticas generales (ej. conteo por tipo de resultado)
-    # Agrupamos por el texto del resultado (ej. "COVID: Positivo")
-    # Nota: Si el resultado es complejo, esto podría necesitar ajuste.
-    stats_query = db.session.query(
-        Diagnosis.result, func.count(Diagnosis.id)
-    ).filter_by(doctor_id=doctor_id).group_by(Diagnosis.result).all()
-    
-    stats = {r[0]: r[1] for r in stats_query}
-    
-    # 4. Actividad reciente (últimos 5 diagnósticos)
-    recent_diagnoses = Diagnosis.query.filter_by(doctor_id=doctor_id)\
-        .order_by(Diagnosis.created_at.desc())\
-        .limit(5).all()
-        
-    recent_activity = []
-    for d in recent_diagnoses:
-        recent_activity.append({
-            "id": d.id,
-            "patient_name": d.patient.full_name if d.patient else "Desconocido",
-            "result": d.result,
-            "date": d.created_at.isoformat() if d.created_at else None
-        })
+    if total_diagnoses > 0:
+        positive_rate = round((covid_positive / total_diagnoses) * 100, 1)
+    else:
+        positive_rate = 0
+
+    # --- 3. Actividad Reciente (Últimos 7 días) ---
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_diagnoses_count = Diagnosis.query.filter_by(doctor_id=doctor_id)\
+        .filter(Diagnosis.created_at >= seven_days_ago).count()
         
     return jsonify({
-        "total_patients": total_patients,
-        "total_diagnoses": total_diagnoses,
-        "stats": stats,
-        "recent_activity": recent_activity
+        "patients": {
+            "total": total_patients,
+            "male": male_patients,
+            "female": female_patients,
+            "other": other_patients,
+            "average_age": average_age
+        },
+        "diagnoses": {
+            "total": total_diagnoses,
+            "covid_positive": covid_positive,
+            "covid_negative": covid_negative,
+            "positive_rate": positive_rate
+        },
+        "recent_activity": {
+            "diagnoses_last_7_days": recent_diagnoses_count
+        }
     }), 200

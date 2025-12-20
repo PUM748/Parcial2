@@ -8,32 +8,19 @@ patient_bp = Blueprint('patients', __name__)
 @patient_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_patients():
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    
-    pagination = Patient.query.order_by(Patient.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    patients = pagination.items
+    doctor_id = get_jwt_identity()
+    patients = Patient.query.filter_by(doctor_id=doctor_id).order_by(Patient.created_at.desc()).all()
     
     result = []
     for p in patients:
         result.append({
             "id": p.id,
             "full_name": p.full_name,
-            "dni": p.dni,
             "age": p.age,
-            "gender": p.gender,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-            "doctor_id": p.doctor_id
+            "gender": p.gender
         })
     
-    return jsonify({
-        "items": result,
-        "total": pagination.total,
-        "pages": pagination.pages,
-        "current_page": pagination.page
-    }), 200
+    return jsonify(result), 200
 
 @patient_bp.route('/', methods=['POST'])
 @jwt_required()
@@ -41,19 +28,15 @@ def create_patient():
     current_doctor_id = get_jwt_identity()
     data = request.get_json()
     
-    required_fields = ['full_name', 'dni', 'age', 'gender']
+    required_fields = ['full_name', 'age', 'gender']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Falta el campo {field}"}), 400
 
-    # Verificar DNI duplicado
-    if Patient.query.filter_by(dni=data['dni']).first():
-        return jsonify({"error": "Ya existe un paciente con este DNI"}), 400
-
     new_patient = Patient(
         doctor_id=current_doctor_id,
         full_name=data['full_name'],
-        dni=data['dni'],
+        dni=data.get('dni'), # Opcional
         age=data['age'],
         gender=data['gender']
     )
@@ -62,11 +45,10 @@ def create_patient():
         db.session.add(new_patient)
         db.session.commit()
         return jsonify({
-            "message": "Paciente creado exitosamente", 
-            "patient": {
-                "id": new_patient.id,
-                "full_name": new_patient.full_name
-            }
+            "id": new_patient.id,
+            "full_name": new_patient.full_name,
+            "age": new_patient.age,
+            "gender": new_patient.gender
         }), 201
     except Exception as e:
         db.session.rollback()

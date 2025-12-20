@@ -31,7 +31,7 @@ def register():
     try:
         db.session.add(new_doctor)
         db.session.commit()
-        return jsonify({"message": "Doctor registrado exitosamente"}), 201
+        return jsonify({"message": "User registered successfully"}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -48,13 +48,7 @@ def login():
     if doctor and check_password_hash(doctor.password, data['password']):
         access_token = create_access_token(identity=str(doctor.id))
         return jsonify({
-            "message": "Login exitoso",
-            "access_token": access_token,
-            "doctor": {
-                "id": doctor.id,
-                "full_name": doctor.full_name,
-                "email": doctor.email
-            }
+            "access_token": access_token
         }), 200
 
     return jsonify({"error": "Credenciales inválidas"}), 401
@@ -70,9 +64,6 @@ def profile():
 
     return jsonify({
         "id": doctor.id,
-        "email": doctor.email,
         "full_name": doctor.full_name,
-        "specialty": doctor.specialty,
-        "is_active": doctor.is_active,
-        "created_at": doctor.created_at.isoformat() if doctor.created_at else None
+        "email": doctor.email
     }), 200
