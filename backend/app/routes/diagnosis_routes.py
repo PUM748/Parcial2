@@ -115,7 +115,13 @@ def predict():
 @diagnosis_bp.route("/patient/<int:patient_id>", methods=["GET"])
 @jwt_required()
 def get_patient_history(patient_id):
-    diagnoses = Diagnosis.query.filter_by(patient_id=patient_id).order_by(Diagnosis.id.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    pagination = Diagnosis.query.filter_by(patient_id=patient_id).order_by(Diagnosis.id.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    diagnoses = pagination.items
     
     base_url = request.host_url.rstrip("/")
     result = []
@@ -123,11 +129,16 @@ def get_patient_history(patient_id):
     for d in diagnoses:
         result.append({
             "id": d.id,
-            "date": "Fecha no registrada", # Idealmente agregar created_at al modelo Diagnosis
+            "date": "Fecha no registrada", 
             "result": d.result,
             "confidence": float(d.confidence),
             "image_url": f"{base_url}/media/{d.image_path}",
             "heatmap_url": f"{base_url}/media/{d.heatmap_path}"
         })
         
-    return jsonify(result), 200
+    return jsonify({
+        "items": result,
+        "total": pagination.total,
+        "pages": pagination.pages,
+        "current_page": pagination.page
+    }), 200

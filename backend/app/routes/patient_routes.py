@@ -8,9 +8,13 @@ patient_bp = Blueprint('patients', __name__)
 @patient_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_patients():
-    # Opción: Filtrar por doctor o ver todos. 
-    # Por ahora mostramos todos para facilitar la búsqueda en atención primaria.
-    patients = Patient.query.order_by(Patient.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    pagination = Patient.query.order_by(Patient.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    patients = pagination.items
     
     result = []
     for p in patients:
@@ -24,7 +28,12 @@ def get_patients():
             "doctor_id": p.doctor_id
         })
     
-    return jsonify(result), 200
+    return jsonify({
+        "items": result,
+        "total": pagination.total,
+        "pages": pagination.pages,
+        "current_page": pagination.page
+    }), 200
 
 @patient_bp.route('/', methods=['POST'])
 @jwt_required()
