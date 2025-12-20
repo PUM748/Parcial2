@@ -6,7 +6,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.diagnosis import Diagnosis
 from app.models.patient import Patient
-from app.ml.covid_predictor import predict_image
+
+# Intento de importación condicional para evitar fallos si TF no está instalado
+try:
+    from app.ml.covid_predictor import predict_image
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
+    print("⚠️ Advertencia: covid_predictor no disponible (TensorFlow faltante).")
 
 diagnosis_bp = Blueprint("diagnosis", __name__)
 
