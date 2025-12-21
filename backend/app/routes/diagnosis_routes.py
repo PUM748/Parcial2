@@ -40,6 +40,73 @@ def get_diagnoses():
         query = query.filter_by(patient_id=patient_id)
 
     if result_filter:
+        if request.args.get("result") == "NO COVID":
+            query = query.filter(Diagnosis.result.ilike("%NORMAL%"))
+        else:
+            query = query.filter(Diagnosis.result.ilike(f"%{result_filter}%"))
+
+    if date_from:
+        query = query.filter(Diagnosis.created_at >= date_from)
+
+    if date_to:
+        query = query.filter(Diagnosis.created_at <= date_to)
+
+    # Ordenar por defecto descendente
+    query = query.order_by(Diagnosis.id.desc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    diagnoses = pagination.items
+
+    base_url = request.host_url.rstrip("/")
+    data = []
+
+    for d in diagnoses:
+        # Obtener nombre del paciente si es posible
+        patient_name = d.patient.full_name if d.patient else "Desconocido"
+
+        data.append(
+            {
+                "id": d.id,
+                "patient_name": patient_name,
+                "result": d.result,
+                "confidence": float(d.confidence),
+                "image_url": f"{base_url}/media/{d.image_path}",
+                "heatmap_url": f"{base_url}/media/{d.heatmap_path}",
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+        )
+
+    return (
+        jsonify(
+            {
+                "page": pagination.page,
+                "per_page": per_page,
+                "total": pagination.total,
+                "data": data,
+            }
+        ),
+        200,
+    )
+
+
+@diagnosis_bp.route("/", methods=["GET"])
+@jwt_required()
+def get_diagnoses():
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+
+    # Filtros
+    patient_id = request.args.get("patient_id")
+    result_filter = request.args.get("result")
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+
+    query = Diagnosis.query
+
+    if patient_id:
+        query = query.filter_by(patient_id=patient_id)
+
+    if result_filter:
         query = query.filter(Diagnosis.result.ilike(f"%{result_filter}%"))
 
     if date_from:

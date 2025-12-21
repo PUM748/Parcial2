@@ -53,3 +53,7 @@ build/
 # OS
 # ======================
 *.tmp
+
+
+backend/media/heatmap/*.png
+backend/media/uploads/x-ray/*.png

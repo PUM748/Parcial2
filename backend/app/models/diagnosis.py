@@ -17,6 +17,4 @@ class Diagnosis(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
-    patient = db.relationship("Patient", backref=db.backref("diagnoses", lazy=True))
-    doctor = db.relationship("Doctor", backref=db.backref("diagnoses", lazy=True))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
