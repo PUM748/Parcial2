@@ -65,5 +65,60 @@ def profile():
     return jsonify({
         "id": doctor.id,
         "full_name": doctor.full_name,
-        "email": doctor.email
+        "email": doctor.email,
+        "specialty": doctor.specialty,
+        "is_active": doctor.is_active
     }), 200
+
+@auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    current_doctor_id = get_jwt_identity()
+    doctor = Doctor.query.get(current_doctor_id)
+
+    if not doctor:
+        return jsonify({"error": "Doctor no encontrado"}), 404
+    
+    if not doctor.is_active:
+        return jsonify({"error": "La cuenta del doctor está desactivada"}), 403
+
+    data = request.get_json()
+    
+    # Actualizar campos si se proporcionan
+    if 'full_name' in data:
+        doctor.full_name = data['full_name']
+    if 'specialty' in data:
+        doctor.specialty = data['specialty']
+        
+    try:
+        db.session.commit()
+        return jsonify({
+            "message": "Perfil actualizado correctamente",
+            "doctor": {
+                "id": doctor.id,
+                "full_name": doctor.full_name,
+                "email": doctor.email,
+                "specialty": doctor.specialty
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@auth_bp.route('/profile', methods=['DELETE'])
+@jwt_required()
+def deactivate_profile():
+    current_doctor_id = get_jwt_identity()
+    doctor = Doctor.query.get(current_doctor_id)
+
+    if not doctor:
+        return jsonify({"error": "Doctor no encontrado"}), 404
+
+    doctor.is_active = False
+    
+    try:
+        db.session.commit()
+        return jsonify({"message": "La cuenta ha sido desactivada"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
