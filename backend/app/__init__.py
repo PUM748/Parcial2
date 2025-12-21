@@ -10,7 +10,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    cors.init_app(app, resources={r"/api/*": {"origins": "*"}}) # cambiar en producción
 
 
     # 👇 ESTA LÍNEA ES OBLIGATORIA
@@ -23,6 +23,13 @@ def create_app():
         return send_from_directory(MEDIA_ROOT, filename)
 
     from app.routes.diagnosis_routes import diagnosis_bp
+    from app.routes.auth_routes import auth_bp
+    from app.routes.patient_routes import patient_bp
+    from app.routes.dashboard_routes import dashboard_bp
+
     app.register_blueprint(diagnosis_bp, url_prefix="/api/diagnoses")
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(patient_bp, url_prefix="/api/patients")
+    app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 
     return app
