@@ -31,7 +31,8 @@ function Diagnosticos() {
   const fetchPacientes = async () => {
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch('http://localhost:5000/api/patients/', {
+      const params = new URLSearchParams({ page: '1', per_page: '1000' });
+      const response = await fetch(`http://localhost:5000/api/patients/?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -40,7 +41,7 @@ function Diagnosticos() {
 
       if (response.ok) {
         const data = await response.json();
-        setPacientes(data);
+        setPacientes(data.data || []);
       }
     } catch (err) {
       console.error(err);

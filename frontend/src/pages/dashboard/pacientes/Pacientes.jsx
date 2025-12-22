@@ -5,6 +5,12 @@ import './Pacientes.css';
 function Pacientes() {
   const navigate = useNavigate();
   const [pacientes, setPacientes] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  // Tamaño de página por defecto y su setter
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -17,7 +23,7 @@ function Pacientes() {
 
   useEffect(() => {
     fetchPacientes();
-  }, []);
+  }, [page, perPage]);
 
   const fetchPacientes = async () => {
     const token = localStorage.getItem('access_token');
@@ -27,7 +33,8 @@ function Pacientes() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/patients/', {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      const response = await fetch(`http://localhost:5000/api/patients/?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -36,7 +43,11 @@ function Pacientes() {
 
       if (response.ok) {
         const data = await response.json();
-        setPacientes(data);
+        // API devuelve { data: [...], page, pages, per_page, total }
+        setPacientes(data.data || []);
+        setPage(data.page || 1);
+        setPages(data.pages || 1);
+        setTotal(data.total || 0);
       } else if (response.status === 401) {
         localStorage.removeItem('access_token');
         navigate('/login');
@@ -148,10 +159,47 @@ function Pacientes() {
         </button>
       </div>
 
+      <div className="pacientes-controls">
+        <div className="per-page">
+          <label>Mostrar:</label>
+          <select value={perPage} onChange={(e) => { setPerPage(parseInt(e.target.value)); setPage(1); }}>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <span className="total-info">Total: {total}</span>
+        </div>
+        {pages > 1 && (
+          <div className="pagination">
+            <button className="btn-secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+              Anterior
+            </button>
+            <span className="page-info">Página {page} de {pages}</span>
+            <button className="btn-secondary" onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}>
+              Siguiente
+            </button>
+          </div>
+        )}
+      </div>
+
       {error && <div className="error-message">{error}</div>}
 
+      <div className="pacientes-controls">
+        <div className="search-box">
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Buscar paciente por nombre..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <span className="total-info">Total: {total}</span>
+        </div>
+      </div>
+
       <div className="pacientes-grid">
-        {pacientes.length === 0 ? (
+        { (pacientes.filter(p => p.full_name.toLowerCase().includes(search.toLowerCase())).length === 0) ? (
           <div className="empty-state">
             <p>No hay pacientes registrados</p>
             <button className="btn-primary" onClick={openModal}>
@@ -159,7 +207,9 @@ function Pacientes() {
             </button>
           </div>
         ) : (
-          pacientes.map(paciente => (
+          pacientes
+            .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()))
+            .map(paciente => (
             <div key={paciente.id} className="paciente-card">
               <div className="paciente-info">
                 <h3>{paciente.full_name}</h3>
