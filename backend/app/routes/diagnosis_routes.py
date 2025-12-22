@@ -38,7 +38,10 @@ def get_diagnoses():
         query = query.filter_by(patient_id=patient_id)
     
     if result_filter:
-        query = query.filter(Diagnosis.result.ilike(f"%{result_filter}%"))
+        if request.args.get('result') == "NO COVID":
+            query = query.filter(Diagnosis.result.ilike("%NORMAL%"))
+        else:
+            query = query.filter(Diagnosis.result.ilike(f"%{result_filter}%"))
         
     if date_from:
         query = query.filter(Diagnosis.created_at >= date_from)
