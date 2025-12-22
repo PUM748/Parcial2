@@ -11,6 +11,7 @@ function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true); // 👈 Nuevo estado
 
   const handleChange = (e) => {
     setFormData({
@@ -59,15 +60,54 @@ function Login() {
       setLoading(false);
     }
   };
-    useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      navigate('/dashboard');
-    }
+
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      try {
+        // Verificar el token
+        const response = await fetch('http://localhost:5000/api/dashboard/summary', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          navigate('/dashboard');
+        } else {
+          localStorage.removeItem('access_token');
+        }
+      } catch (err) {
+        console.error('Error verificando token:', err);
+        localStorage.removeItem('access_token');
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    verifyToken();
   }, [navigate]);
+
+  if (checkingAuth) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <p>Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-container">
-      <div className="auth-card" >
+      <div className="auth-card">
         <button onClick={() => navigate("/")} className='back_button'>
           <FaArrowLeft size={20} /> 
         </button>

@@ -22,6 +22,7 @@ function Diagnosticos() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedDiagnosis, setSelectedDiagnosis] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
 
   useEffect(() => {
     fetchPacientes();
@@ -50,7 +51,7 @@ function Diagnosticos() {
 
   const fetchDiagnosticos = async () => {
     const token = localStorage.getItem('access_token');
-    
+
     if (!token) {
       navigate('/login');
       return;
@@ -131,13 +132,18 @@ function Diagnosticos() {
       });
 
       if (response.ok) {
-        // const data = await response.json();
-        setShowModal(false);
-        setSelectedPatient('');
-        setSelectedImage(null);
-        setImagePreview(null);
+        const data = await response.json();
+
+
+        const patientInfo = pacientes.find(p => p.id === parseInt(selectedPatient));
+        const enrichedData = {
+          ...data,
+          patient_name: patientInfo ? patientInfo.full_name : 'Paciente',
+          created_at: new Date().toISOString()
+        };
+
+        setAnalysisResult(enrichedData);
         await fetchDiagnosticos();
-        setSelectedDiagnosis(null);
       } else {
         const data = await response.json();
         setError(data.detail || 'Error al procesar diagnóstico');
@@ -152,6 +158,16 @@ function Diagnosticos() {
 
   const openModal = () => {
     setShowModal(true);
+    setSelectedPatient('');
+    setSelectedImage(null);
+    setImagePreview(null);
+    setAnalysisResult(null);
+    setError('');
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setAnalysisResult(null);
     setSelectedPatient('');
     setSelectedImage(null);
     setImagePreview(null);
@@ -200,7 +216,7 @@ function Diagnosticos() {
             <select
               value={filters.patient_id}
               onChange={(e) => {
-                setFilters({...filters, patient_id: e.target.value});
+                setFilters({ ...filters, patient_id: e.target.value });
                 handleFilterChange();
               }}
             >
@@ -216,7 +232,7 @@ function Diagnosticos() {
             <select
               value={filters.result}
               onChange={(e) => {
-                setFilters({...filters, result: e.target.value});
+                setFilters({ ...filters, result: e.target.value });
                 handleFilterChange();
               }}
             >
@@ -232,7 +248,7 @@ function Diagnosticos() {
               type="date"
               value={filters.date_from}
               onChange={(e) => {
-                setFilters({...filters, date_from: e.target.value});
+                setFilters({ ...filters, date_from: e.target.value });
                 handleFilterChange();
               }}
             />
@@ -244,7 +260,7 @@ function Diagnosticos() {
               type="date"
               value={filters.date_to}
               onChange={(e) => {
-                setFilters({...filters, date_to: e.target.value});
+                setFilters({ ...filters, date_to: e.target.value });
                 handleFilterChange();
               }}
             />
@@ -282,8 +298,8 @@ function Diagnosticos() {
                       {new Date(diag.created_at).toLocaleDateString('es-ES')}
                     </p>
                   </div>
-                  <button 
-                    className="btn-view" 
+                  <button
+                    className="btn-view"
                     onClick={() => viewDiagnosis(diag)}
                   >
                     Ver Detalles
@@ -294,8 +310,8 @@ function Diagnosticos() {
 
             {totalPages > 1 && (
               <div className="pagination">
-                <button 
-                  className="btn-secondary" 
+                <button
+                  className="btn-secondary"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
@@ -304,8 +320,8 @@ function Diagnosticos() {
                 <span className="page-info">
                   Página {page} de {totalPages}
                 </span>
-                <button 
-                  className="btn-secondary" 
+                <button
+                  className="btn-secondary"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
@@ -317,65 +333,127 @@ function Diagnosticos() {
         )}
       </div>
 
+
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => !uploading && !analysisResult && closeModal()}>
+          <div className="modal-content diagnosis-detail" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Nuevo Diagnóstico</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <h3>{analysisResult ? 'Resultado del Diagnóstico' : 'Nuevo Diagnóstico'}</h3>
+              <button
+                className="modal-close"
+                onClick={closeModal}
+                disabled={uploading}
+              >×</button>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Paciente</label>
-                <select
-                  value={selectedPatient}
-                  onChange={(e) => setSelectedPatient(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar paciente</option>
-                  {pacientes.map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Imagen de Rayos X</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  required
-                />
-                {imagePreview && (
-                  <div className="image-preview">
-                    <img src={imagePreview} alt="Preview" />
+            {!analysisResult ? (
+              <>
+                <form onSubmit={handleSubmit}>
+                  <div className="form-group">
+                    <label>Paciente</label>
+                    <select
+                      value={selectedPatient}
+                      onChange={(e) => setSelectedPatient(e.target.value)}
+                      required
+                      disabled={uploading}
+                    >
+                      <option value="">Seleccionar paciente</option>
+                      {pacientes.map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
 
-              <div className="modal-actions">
-                <button 
-                  type="button" 
-                  className="btn-secondary" 
-                  onClick={() => setShowModal(false)}
-                  disabled={uploading}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-primary"
-                  disabled={uploading}
-                >
-                  {uploading ? 'Procesando...' : 'Procesar Diagnóstico'}
-                </button>
-              </div>
-            </form>
+                  <div className="form-group">
+                    <label>Imagen de Rayos X</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      required
+                      disabled={uploading}
+                    />
+                    {imagePreview && (
+                      <div className="image-preview">
+                        <img src={imagePreview} alt="Preview" width={250} height={200} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={closeModal}
+                      disabled={uploading}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Procesando...' : 'Procesar Diagnóstico'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="diagnosis-content">
+                  <div className="diagnosis-images">
+                    <div className="diagnosis-image-box">
+                      <h4>Imagen Original</h4>
+                      <img src={analysisResult.image_url} alt="Rayos X Original" />
+                    </div>
+                    <div className="diagnosis-image-box">
+                      <h4>Mapa de Calor</h4>
+                      <img src={analysisResult.heatmap_url} alt="Heatmap" />
+                    </div>
+                  </div>
+
+                  <div className="diagnosis-info-detail">
+                    <div className="info-row">
+                      <span className="label">Paciente:</span>
+                      <span className="value">{analysisResult.patient_name}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Resultado:</span>
+                      <span className={`value result-badge ${analysisResult.result === 'COVID' ? 'positive' : 'negative'}`}>
+                        {analysisResult.result}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Confianza:</span>
+                      <span className="value">{analysisResult.confidence.toFixed(2)}%</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Fecha:</span>
+                      <span className="value">
+                        {new Date(analysisResult.created_at).toLocaleString('es-ES')}
+                      </span>
+                    </div>
+                    <div className="result-tip">
+                      <p className={`value result-badge ${analysisResult.result === 'COVID' ? 'positive' : 'negative'}`}>{analysisResult.result === 'COVID' ? 'El paciente presenta signos COVID-19.' : 'El paciente no presenta signos de COVID-19.'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={closeModal}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
+
 
       {selectedDiagnosis && (
         <div className="modal-overlay" onClick={() => setSelectedDiagnosis(null)}>
@@ -418,12 +496,16 @@ function Diagnosticos() {
                     {new Date(selectedDiagnosis.created_at).toLocaleString('es-ES')}
                   </span>
                 </div>
+
+                <div className="result-tip">
+                  <p className={`value result-badge ${selectedDiagnosis.result === 'COVID' ? 'positive' : 'negative'}`}>{selectedDiagnosis.result === 'COVID' ? 'El paciente presenta signos COVID-19.' : 'El paciente no presenta signos de COVID-19.'}</p>
+                </div>
               </div>
             </div>
 
             <div className="modal-actions">
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={() => setSelectedDiagnosis(null)}
               >
                 Cerrar

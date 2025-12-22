@@ -194,7 +194,6 @@ function Pacientes() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <span className="total-info">Total: {total}</span>
         </div>
       </div>
 

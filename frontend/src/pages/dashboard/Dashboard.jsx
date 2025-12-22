@@ -28,6 +28,13 @@ function Dashboard() {
     fetchDashboardData();
   }, []);
 
+
+  useEffect(() => {
+    if (activeView === 'dashboard') {
+      fetchDashboardData();
+    }
+  }, [activeView]);
+
   const fetchDashboardData = async () => {
     const token = localStorage.getItem('access_token');
     
@@ -66,6 +73,11 @@ function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     navigate('/login');
+  };
+
+  // 🔄 NUEVO: Función para actualizar desde componentes hijos
+  const handleDataUpdate = () => {
+    fetchDashboardData();
   };
 
   if (loading) {
@@ -291,8 +303,8 @@ function Dashboard() {
           </div>
         )}
 
-        {activeView === 'pacientes' && <Pacientes />}
-        {activeView === 'diagnosticos' && <Diagnosticos />}
+        {activeView === 'pacientes' && <Pacientes onDataUpdate={handleDataUpdate} />}
+        {activeView === 'diagnosticos' && <Diagnosticos onDataUpdate={handleDataUpdate} />}
         {activeView === 'perfil' && <Perfil />}
       </main>
     </div>
