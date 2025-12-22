@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Pie, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+} from 'chart.js';
 import Pacientes from './pacientes/Pacientes';
 import Diagnosticos from './diagnosticos/Diagnosticos';
 import Perfil from './perfil/Perfil';
 import './Dashboard.css';
+
+ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -131,6 +143,38 @@ function Dashboard() {
                 <div className="stat-footer">
                   Edad promedio: {summary.patients.average_age} años
                 </div>
+                <div className="chart-container">
+                  <Pie 
+                    data={{
+                      labels: ['Hombres', 'Mujeres', ...(summary.patients.other > 0 ? ['Otros'] : [])],
+                      datasets: [{
+                        data: [
+                          summary.patients.male, 
+                          summary.patients.female,
+                          ...(summary.patients.other > 0 ? [summary.patients.other] : [])
+                        ],
+                        backgroundColor: ['#0d9488', '#f59e0b', '#8b5cf6'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: true,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom',
+                          labels: {
+                            padding: 15,
+                            font: { size: 12 },
+                            color: '#64748b'
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="stat-card">
@@ -148,6 +192,55 @@ function Dashboard() {
                 <div className="stat-footer">
                   Tasa positiva: {summary.diagnoses.positive_rate}%
                 </div>
+                <div className="chart-container">
+                  <Bar 
+                    data={{
+                      labels: ['COVID', 'NO COVID'],
+                      datasets: [{
+                        label: 'COVID',
+                        data: [summary.diagnoses.covid_positive, 0],
+                        backgroundColor: '#dc2626',
+                        borderWidth: 0,
+                        borderRadius: 6
+                      },
+                      {
+                        label: 'NO COVID',
+                        data: [0, summary.diagnoses.covid_negative],
+                        backgroundColor: '#16a34a',
+                        borderWidth: 0,
+                        borderRadius: 6
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: true,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom',
+                          labels: {
+                            padding: 15,
+                            font: { size: 12 },
+                            color: '#64748b',
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                          }
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          ticks: { color: '#64748b', stepSize: 1 },
+                          grid: { color: '#e2e8f0' }
+                        },
+                        x: {
+                          ticks: { color: '#64748b' },
+                          grid: { display: false }
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="stat-card">
@@ -161,6 +254,37 @@ function Dashboard() {
                 <div className="stat-value">{summary.recent_activity.diagnoses_last_7_days}</div>
                 <div className="stat-footer">
                   Diagnósticos en los últimos 7 días
+                </div>
+                <div className="chart-container">
+                  <Pie 
+                    data={{
+                      labels: ['Última semana', 'Anteriores'],
+                      datasets: [{
+                        data: [
+                          summary.recent_activity.diagnoses_last_7_days,
+                          summary.diagnoses.total - summary.recent_activity.diagnoses_last_7_days
+                        ],
+                        backgroundColor: ['#0d9488', '#cbd5e1'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: true,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom',
+                          labels: {
+                            padding: 15,
+                            font: { size: 12 },
+                            color: '#64748b'
+                          }
+                        }
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>
