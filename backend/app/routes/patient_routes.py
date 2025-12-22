@@ -9,18 +9,34 @@ patient_bp = Blueprint('patients', __name__)
 @jwt_required()
 def get_patients():
     doctor_id = get_jwt_identity()
-    patients = Patient.query.filter_by(doctor_id=doctor_id).order_by(Patient.created_at.desc()).all()
-    
-    result = []
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    pagination = Patient.query \
+        .filter_by(doctor_id=doctor_id) \
+        .order_by(Patient.created_at.desc()) \
+        .paginate(page=page, per_page=per_page, error_out=False)
+
+    patients = pagination.items
+
+    data = []
     for p in patients:
-        result.append({
+        data.append({
             "id": p.id,
             "full_name": p.full_name,
             "age": p.age,
             "gender": p.gender
         })
-    
-    return jsonify(result), 200
+
+    return jsonify({
+        "page": pagination.page,
+        "per_page": per_page,
+        "total": pagination.total,
+        "pages": pagination.pages,
+        "data": data
+    }), 200
+
 
 @patient_bp.route('/', methods=['POST'])
 @jwt_required()

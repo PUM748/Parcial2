@@ -26,23 +26,29 @@ with open(MODEL_PATH, "rb") as f:
 
 
 # ---------- PREDICCIÓN ----------
-
 def predict_image(image_path, heatmap_output_path):
-    # Leer imagen
+    # Leer imagen con OpenCV (BGR)
     img = imread(image_path)
     img = resize(img, (224, 224))
-    img_array = np.expand_dims(img, axis=0)
 
-    # Extraer características
+    # Batch dimension
+    img_array = np.array([img])  # EXACTAMENTE como el primero
+
+    # Feature extraction
     features = DNN_MODEL.predict(img_array)
 
-    # Predicción
+    # XGBoost prediction
     prediction = XGB_MODEL.predict(features)[0]
-    confidence = float(np.max(XGB_MODEL.predict_proba(features)) * 100)
+
+    # Opcional: probabilidad
+    if hasattr(XGB_MODEL, "predict_proba"):
+        confidence = float(np.max(XGB_MODEL.predict_proba(features)) * 100)
+    else:
+        confidence = None
 
     label = "COVID" if prediction == 1 else "NORMAL"
 
-    # Grad-CAM
+    # Grad-CAM (misma idea que antes)
     heatmap = generate_gradcam(image_path)
     save_gradcam(image_path, heatmap, heatmap_output_path)
 
@@ -53,30 +59,43 @@ def predict_image(image_path, heatmap_output_path):
 
 def generate_gradcam(img_path):
     img_size = (224, 224)
-    last_conv_layer = "conv5_block32_concat"
+    last_conv_layer_name = "conv5_block32_concat"
 
+    # EXACTAMENTE igual al primer código
     img = load_img(img_path, target_size=img_size)
     img_array = img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = preprocess_input(img_array)
 
+    model = DenseNet169(
+        weights="imagenet",
+        include_top=False,
+        input_shape=(224, 224, 3),
+        pooling="avg"
+    )
+
     grad_model = tf.keras.models.Model(
-        [DNN_MODEL.inputs],
-        [DNN_MODEL.get_layer(last_conv_layer).output, DNN_MODEL.output]
+        [model.inputs],
+        [model.get_layer(last_conv_layer_name).output, model.output]
     )
 
     with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
-        loss = predictions[:, 0]
+        last_conv_output, preds = grad_model(img_array)
 
-    grads = tape.gradient(loss, conv_outputs)
+        # 🔥 ESTA ES LA DIFERENCIA CLAVE
+        pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
+
+    grads = tape.gradient(class_channel, last_conv_output)
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-    conv_outputs = conv_outputs[0]
-    heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
+    last_conv_output = last_conv_output[0]
+    heatmap = last_conv_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
 
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    heatmap = tf.maximum(heatmap, 0)
+    heatmap /= tf.reduce_max(heatmap) + 1e-8
+
     return heatmap.numpy()
 
 
