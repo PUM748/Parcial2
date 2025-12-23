@@ -13,7 +13,7 @@ try:
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
-    print("⚠️ Advertencia: covid_predictor no disponible (TensorFlow faltante).")
+    print("Advertencia: covid_predictor no disponible (TensorFlow faltante).")
 
 diagnosis_bp = Blueprint("diagnosis", __name__)
 
@@ -101,7 +101,7 @@ def predict():
 
     image = request.files["image"]
 
-    # 2️⃣ Preparar carpetas
+    # Preparar carpetas
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(HEATMAP_FOLDER, exist_ok=True)
 
@@ -112,7 +112,7 @@ def predict():
     # Guardar imagen original
     image.save(image_path)
 
-    # 3️⃣ Lógica de Predicción según enfermedad
+    #  Lógica de Predicción según enfermedad
     label = "Desconocido"
     confidence = 0.0
     
@@ -148,7 +148,7 @@ def predict():
         # Guardaremos el label directo.
         final_result = label
 
-        # 4️⃣ Guardar en BD
+        #  Guardar en BD
         diagnosis = Diagnosis(
             patient_id=patient_id,
             doctor_id=doctor_id,
